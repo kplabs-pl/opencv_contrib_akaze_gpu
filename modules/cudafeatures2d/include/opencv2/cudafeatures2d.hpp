@@ -478,6 +478,90 @@ public:
 
 //! @}
 
+/** @brief Class implementing the AKAZE keypoint detector and descriptor extractor, described in @cite ANB13.
+
+@details AKAZE descriptors can only be used with KAZE or AKAZE keypoints. This class is thread-safe.
+
+@note When you need descriptors use Feature2D::detectAndCompute, which
+provides better performance. When using Feature2D::detect followed by
+Feature2D::compute scale space pyramid is computed twice.
+
+@note AKAZE implements T-API. When image is passed as UMat some parts of the algorithm
+will use OpenCL.
+
+@note [ANB13] Fast Explicit Diffusion for Accelerated Features in Nonlinear
+Scale Spaces. Pablo F. Alcantarilla, Jesús Nuevo and Adrien Bartoli. In
+British Machine Vision Conference (BMVC), Bristol, UK, September 2013.
+
+*/
+class CV_EXPORTS_W AKAZE : public Feature2D
+{
+public:
+  // AKAZE descriptor type
+/* ************************************************************************* */
+/// AKAZE Descriptor Type
+  enum DescriptorType {
+    DESCRIPTOR_SURF_UPRIGHT = 0, ///< (not implemented) Upright descriptors, not invariant to rotation
+    DESCRIPTOR_SURF = 1,  ///< (not implemented)
+    DESCRIPTOR_MSURF_UPRIGHT = 12, ///< (unimplemented) Upright descriptors, not invariant to rotation
+    DESCRIPTOR_MSURF = 13,  ///< (not implemented)
+    DESCRIPTOR_KAZE_UPRIGHT = 2, ///< (not implemented) Upright descriptors, not invariant to rotation
+    DESCRIPTOR_KAZE = 3,  ///< (not implemented)
+    DESCRIPTOR_MLDB_UPRIGHT = 4, ///< (not implemented) Upright descriptors, not invariant to rotation
+    DESCRIPTOR_MLDB = 5
+  };
+
+/* ************************************************************************* */
+/// AKAZE Diffusivities
+  enum DiffusivityType {
+    DIFF_PM_G1 = 0,
+    DIFF_PM_G2 = 1,
+    DIFF_WEICKERT = 2,
+    DIFF_CHARBONNIER = 3
+  };
+
+  /** @brief The AKAZE constructor
+
+  @param descriptor_type Type of the extracted descriptor: DESCRIPTOR_KAZE,
+  DESCRIPTOR_KAZE_UPRIGHT, DESCRIPTOR_MLDB or DESCRIPTOR_MLDB_UPRIGHT.
+  @param descriptor_size Size of the descriptor in bits. 0 -\> Full size
+  @param descriptor_channels Number of channels in the descriptor (1, 2, 3)
+  @param threshold Detector response threshold to accept point
+  @param nOctaves Maximum octave evolution of the image
+  @param nOctaveLayers Default number of sublevels per scale level
+  @param diffusivity Diffusivity type. DIFF_PM_G1, DIFF_PM_G2, DIFF_WEICKERT or
+  DIFF_CHARBONNIER
+   */
+  CV_WRAP static Ptr<cuda::AKAZE> create(cuda::AKAZE::DescriptorType descriptor_type = cuda::AKAZE::DESCRIPTOR_MLDB,
+                                   int descriptor_size = 0, int descriptor_channels = 3,
+                                   float threshold = 0.001f, int nOctaves = 4,
+                                   int nOctaveLayers = 4, cuda::AKAZE::DiffusivityType diffusivity = cuda::AKAZE::DIFF_PM_G2);
+
+  CV_WRAP virtual void setDescriptorType(cuda::AKAZE::DescriptorType dtype) = 0;
+  CV_WRAP virtual cuda::AKAZE::DescriptorType getDescriptorType() const = 0;
+
+  CV_WRAP virtual void setDescriptorSize(int dsize) = 0;
+  CV_WRAP virtual int getDescriptorSize() const = 0;
+
+  CV_WRAP virtual void setDescriptorChannels(int dch) = 0;
+  CV_WRAP virtual int getDescriptorChannels() const = 0;
+
+  CV_WRAP virtual void setThreshold(double threshold) = 0;
+  CV_WRAP virtual double getThreshold() const = 0;
+
+  CV_WRAP virtual void setNOctaves(int octaves) = 0;
+  CV_WRAP virtual int getNOctaves() const = 0;
+
+  CV_WRAP virtual void setNOctaveLayers(int octaveLayers) = 0;
+  CV_WRAP virtual int getNOctaveLayers() const = 0;
+
+  CV_WRAP virtual void setDiffusivity(cuda::AKAZE::DiffusivityType diff) = 0;
+  CV_WRAP virtual cuda::AKAZE::DiffusivityType getDiffusivity() const = 0;
+  CV_WRAP virtual String getDefaultName() const CV_OVERRIDE;
+};
+
+//! @} features2d_main
+
 }} // namespace cv { namespace cuda {
 
 #endif /* OPENCV_CUDAFEATURES2D_HPP */
