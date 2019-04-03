@@ -79,7 +79,7 @@ private:
   AKAZETiming timing_;
 
   /// CUDA memory buffers
-  float *cuda_memory;
+  float *cuda_memory = nullptr;
   cv::KeyPoint *cuda_points;
   cv::KeyPoint *cuda_bufferpoints;
   cv::Mat cuda_desc;

@@ -227,7 +227,9 @@ int AKAZEFeatures::Create_Nonlinear_Scale_Space(const cv::Mat &img) {
   CudaImage &Lsmooth = cuda_buffers[1];
   CudaImage &Ltemp = cuda_buffers[2];
 
+  CV_Assert((img.type() & CV_MAT_DEPTH_MASK) == CV_32F);
   Limg.h_data = (float *)img.data;
+
   Limg.Download();
 
   ContrastPercentile(Limg, Ltemp, Lsmooth, options_.kcontrast_percentile,
@@ -363,7 +365,7 @@ void AKAZEFeatures::Feature_Detection(std::vector<cv::KeyPoint> &kpts) {
 
   FilterExtrema(cuda_points, cuda_bufferpoints, cuda_ptindices, nump);
 
-  // GetPoints(kpts, cuda_points);
+  akaze::GetPoints(kpts, cuda_points, nump);
 
   double t3 = cv::getTickCount();
   timing_.extrema = 1000.0 * (t3 - t2) / cv::getTickFrequency();
@@ -405,7 +407,7 @@ void AKAZEFeatures::Compute_Descriptors(std::vector<cv::KeyPoint> &kpts,
   // Allocate memory for the matrix with the descriptors
   int descriptor_size = 64;
   int descriptor_type = CV_32FC1;
-  if (options_.descriptor >= AKAZE::DESCRIPTOR_MLDB_UPRIGHT) {
+  if (options_.descriptor >= cuda::AKAZE::DESCRIPTOR_MLDB_UPRIGHT) {
     int descriptor_bits =
         (options_.descriptor_size == 0)
             ? (6 + 36 + 120) *
@@ -417,6 +419,7 @@ void AKAZEFeatures::Compute_Descriptors(std::vector<cv::KeyPoint> &kpts,
     descriptor_type = CV_8UC1;
   }
   descriptors.create((int)kpts.size(), descriptor_size, descriptor_type);
+  // printf("created %d\n", ((int)(int)kpts.size()));
 
   Mat desc = descriptors.getMat();
 
@@ -424,37 +427,18 @@ void AKAZEFeatures::Compute_Descriptors(std::vector<cv::KeyPoint> &kpts,
 
   t1 = cv::getTickCount();
 
-  // Allocate memory for the matrix with the descriptors
-  if (options_.descriptor < AKAZE::DESCRIPTOR_MLDB_UPRIGHT) {
-    desc = cv::Mat::zeros(kpts.size(), 64, CV_32FC1);
-  } else {
-    // We use the full length binary descriptor -> 486 bits
-    if (options_.descriptor_size == 0) {
-      int t = (6 + 36 + 120) * options_.descriptor_channels;
-      desc = cv::Mat::zeros(kpts.size(), ceil(t / 8.), CV_8UC1);
-    } else {
-      // We use the random bit selection length binary descriptor
-      desc = cv::Mat::zeros(kpts.size(), ceil(options_.descriptor_size / 8.),
-                            CV_8UC1);
-    }
-  }
-
   int pattern_size = options_.descriptor_pattern_size;
 
   switch (options_.descriptor) {
   case cuda::AKAZE::DESCRIPTOR_MLDB:
     FindOrientation(cuda_points, cuda_buffers, cuda_images, nump);
-    GetPoints(kpts, cuda_points, nump);
+    //GetPoints(kpts, cuda_points, nump);
     ExtractDescriptors(cuda_points, cuda_buffers, cuda_images, cuda_desc.data,
                        cuda_descbuffer, pattern_size, nump);
     GetDescriptors(desc, cuda_desc, nump);
 
     break;
-  case cuda::AKAZE::DESCRIPTOR_SURF_UPRIGHT:
-  case cuda::AKAZE::DESCRIPTOR_SURF:
-  case cuda::AKAZE::DESCRIPTOR_MSURF_UPRIGHT:
-  case cuda::AKAZE::DESCRIPTOR_MSURF:
-  case cuda::AKAZE::DESCRIPTOR_MLDB_UPRIGHT:
+  default:
     cout << "Descriptor not implemented\n";
   }
 

@@ -517,7 +517,7 @@ float *AllocBuffers(int width, int height, int num, int omax, int &maxpts,
   float *memory = NULL;
   size_t pitch;
 
-  std::cout << "allocating " << size/1024./1024. << " Mbytes of gpu memory\n";
+  //std::cout << "allocating " << size/1024./1024. << " Mbytes of gpu memory\n";
 
   safeCall(cudaMallocPitch((void **)&memory, &pitch, (size_t)4096,
                            (size + 4095) / 4096 * sizeof(float)));
@@ -770,7 +770,7 @@ __global__ void FindExtrema(float *imd, float *imp, float *imn, int maxx,
       point.pt.y = ratio * (y);
       point.angle = dst1;
     } else {
-        atomicAdd(d_PointCounter,-1);
+        atomicSub(d_PointCounter,1);
     }
   }
 }
@@ -923,7 +923,7 @@ __global__ void bitonicSort(const T *pts, T *newpts) {
 	  }
       }
   }
-  
+
 
   cv::KeyPoint *tmpnewg = &newpts[first];
   for (int i = 0; i < 8192; i += BitonicSortThreads) {
@@ -957,7 +957,7 @@ __global__ void bitonicSort_global(const T *pts, T *newpts, sortstruct_t<int>* _
   while (nkpts_ceil < nkpts) nkpts_ceil *= 2;
 
   sortstruct_t<int> *shm = &(_shm[_sz*blockIdx.x]);
-  
+
   for (int i = threadIdx.x; i < nkpts_ceil;
        i += BitonicSortThreads) {
     if (i < nkpts) {
@@ -986,7 +986,7 @@ __global__ void bitonicSort_global(const T *pts, T *newpts, sortstruct_t<int>* _
 	  }
       }
   }
-  
+
 
   cv::KeyPoint *tmpnewg = &newpts[first];
   for (int i = 0; i < nkpts_ceil; i += BitonicSortThreads) {
@@ -1025,16 +1025,16 @@ __global__ void FindNeighbors(cv::KeyPoint *pts, int *kptindices, int width) {
   // Iterate backwards instead and break as soon as possible!
   //for (int i = cmpIdx + threadIdx.x; i < blockIdx.x; i += FindNeighborsThreads) {
   for (int i=blockIdx.x-threadIdx.x-1; i >= cmpIdx; i -= FindNeighborsThreads) {
-      
+
       cv::KeyPoint &kpt_cmp = pts[i];
-      
+
       if (kpt.pt.y-kpt_cmp.pt.y > size*.5f) break;
-      
+
       //if (fabs(kpt.pt.y-kpt_cmp.pt.y) > size*.5f) continue;
-      
+
       float dist = (kpt.pt.x - kpt_cmp.pt.x) * (kpt.pt.x - kpt_cmp.pt.x) +
 	  (kpt.pt.y - kpt_cmp.pt.y) * (kpt.pt.y - kpt_cmp.pt.y);
-      
+
       if (dist < size * size * 0.25) {
 	  int idx = atomicAdd(gidx, 1);
 	  kptindices[blockIdx.x * width + idx] = i;
@@ -1044,16 +1044,16 @@ __global__ void FindNeighbors(cv::KeyPoint *pts, int *kptindices, int width) {
   if (scale > 0) {
       int startidx = d_ExtremaIdx[scale-1];
       cmpIdx = scale < 2 ? 0 : d_ExtremaIdx[scale - 2];
-      for (int i=startidx-threadIdx.x-1; i >= cmpIdx; i -= FindNeighborsThreads) {	  
+      for (int i=startidx-threadIdx.x-1; i >= cmpIdx; i -= FindNeighborsThreads) {
 	  cv::KeyPoint &kpt_cmp = pts[i];
-	  
+
 	  if (kpt_cmp.pt.y-kpt.pt.y > size*.5f) continue;
-	  
+
 	  if (kpt.pt.y-kpt_cmp.pt.y > size*.5f) break;
-	  
+
 	  float dist = (kpt.pt.x - kpt_cmp.pt.x) * (kpt.pt.x - kpt_cmp.pt.x) +
 	      (kpt.pt.y - kpt_cmp.pt.y) * (kpt.pt.y - kpt_cmp.pt.y);
-	  
+
 	  if (dist < size * size * 0.25) {
 	      int idx = atomicAdd(gidx, 1);
 	      kptindices[blockIdx.x * width + idx] = i;
@@ -1061,7 +1061,7 @@ __global__ void FindNeighbors(cv::KeyPoint *pts, int *kptindices, int width) {
       }
   }
 
-      
+
 
 
   __syncthreads();
@@ -1307,7 +1307,7 @@ __global__ void sortFiltered_kernel(cv::KeyPoint *kpts, cv::KeyPoint *newkpts,
       }
       __syncthreads();
     }
-    
+
   }
 
   __syncthreads();
@@ -1341,8 +1341,8 @@ void FilterExtrema(cv::KeyPoint *pts, cv::KeyPoint *newpts, int* kptindices, int
       int nump_ceil = 1;
       while (nump_ceil < nump) nump_ceil <<= 1;
 
-      std::cout << "numpceil: " << nump_ceil << std::endl;
-      
+      //std::cout << "numpceil: " << nump_ceil << std::endl;
+
       sortstruct_t<int>* sortstruct;
       cudaMalloc((void**)&sortstruct, nump_ceil*16*sizeof(sortstruct_t<int>));
       bitonicSort_global << <blocks, threads>>> (pts, newpts, sortstruct,nump_ceil);
@@ -1350,9 +1350,9 @@ void FilterExtrema(cv::KeyPoint *pts, cv::KeyPoint *newpts, int* kptindices, int
   }
 CHK
 
-  
 
-  
+
+
 /*  cv::KeyPoint* newpts_h = new cv::KeyPoint[nump];
   cudaMemcpy(newpts_h,newpts,nump*sizeof(cv::KeyPoint),cudaMemcpyDeviceToHost);
 
@@ -1365,7 +1365,7 @@ CHK
 
       if (!(k0.pt.y<k1.pt.y || (k0.pt.y==k1.pt.y && k0.pt.x<k1.pt.x))) std::cout << "  <<<<";
       if (k1.size < 0 ) std::cout << "  ##############";
-       
+
 
       std::cout << "\n";
 
@@ -1380,7 +1380,7 @@ CHK
 CHK
   //cudaDeviceSynchronize();
   //safeCall(cudaGetLastError());
-  
+
   // Filter extrema
   blocks.x = 1;
   threads.x = FilterExtremaThreads;
@@ -1971,11 +1971,11 @@ __global__ void MatchDescriptors(unsigned char *d1, unsigned char *d2,
 
 void MatchDescriptors(cv::Mat &desc_query, cv::Mat &desc_train,
 		      std::vector<std::vector<cv::DMatch> > &dmatches,
-		      size_t pitch, 
+		      size_t pitch,
 		      unsigned char* descq_d, unsigned char* desct_d, cv::DMatch* dmatches_d, cv::DMatch* dmatches_h) {
 
     dim3 block(desc_query.rows);
-    
+
     MatchDescriptors << <block, NTHREADS_MATCH>>>(descq_d, desct_d, pitch, desc_train.rows, dmatches_d);
 
     cudaMemcpy(dmatches_h, dmatches_d, desc_query.rows * 2 * sizeof(cv::DMatch),
@@ -1988,7 +1988,7 @@ void MatchDescriptors(cv::Mat &desc_query, cv::Mat &desc_train,
 	tdmatch.push_back(dmatches_h[2 * i + 1]);
 	dmatches.push_back(tdmatch);
     }
-    
+
 }
 
 
@@ -2170,6 +2170,7 @@ __global__ void FindOrientation(cv::KeyPoint *d_pts, CudaImage *d_imgs) {
 
 double FindOrientation(cv::KeyPoint *d_pts, std::vector<CudaImage> &h_imgs, CudaImage *d_imgs, int numPts) {
 
+  //printf("d_imgs: %p h_imgs.size: %d, num_pts: %d\n", d_imgs, (int)h_imgs.size(), numPts);
   safeCall(cudaMemcpyAsync(d_imgs, (float *)&h_imgs[0],
                            sizeof(CudaImage) * h_imgs.size(),
                            cudaMemcpyHostToDevice));

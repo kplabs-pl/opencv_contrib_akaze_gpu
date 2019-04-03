@@ -184,7 +184,16 @@ public:
     options.diffusivity = diffusivity;
 
     AKAZEFeatures impl(options);
-    impl.Create_Nonlinear_Scale_Space(image.getMat());
+    cv::Mat floatImage;
+    if((floatImage.type() & CV_MAT_DEPTH_MASK) == CV_32F)
+    {
+        floatImage = image.getMat();
+    }
+    else
+    {
+        image.getMat().convertTo(floatImage, CV_32FC1);
+    }
+    impl.Create_Nonlinear_Scale_Space(floatImage);
 
     if (!useProvidedKeypoints) {
       impl.Feature_Detection(keypoints);
