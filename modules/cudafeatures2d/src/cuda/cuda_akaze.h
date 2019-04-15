@@ -22,8 +22,9 @@ void ClearPoints();
 int GetPoints(std::vector<cv::KeyPoint>& h_pts, cv::KeyPoint *d_pts, int numPts);
 void WaitCuda();
 void GetDescriptors(cv::Mat &h_desc, cv::Mat &d_desc, int numPts);
-double FindOrientation(cv::KeyPoint *d_pts, std::vector<CudaImage> &h_imgs, CudaImage *d_imgs, int numPts);
-double ExtractDescriptors(cv::KeyPoint *d_pts, std::vector<CudaImage> &cuda_buffers, CudaImage *cuda_images, unsigned char* desc_h, float *vals_d, int patsize, int numPts);
+void PrepareCudaImages(CudaImage *d_imgs, const std::vector<CudaImage> &cuda_buffers);
+double FindOrientation(cv::KeyPoint *d_pts, CudaImage *d_imgs, int numPts);
+double ExtractDescriptors(cv::KeyPoint *d_pts, CudaImage *cuda_images, unsigned char* desc_h, float *vals_d, int patsize, int numPts);
 void MatchDescriptors(cv::Mat &desc_query, cv::Mat &desc_train,
 		      std::vector<std::vector<cv::DMatch> > &dmatches,
 		      size_t pitch, 

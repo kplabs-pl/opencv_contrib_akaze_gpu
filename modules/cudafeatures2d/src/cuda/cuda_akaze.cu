@@ -346,7 +346,7 @@ __global__ void NLDUpdate(NLDUpdate_t s) {
   }
 }
 
-double NLDStep(CudaImage &img, CudaImage &flow, CudaImage &temp,
+double NLDStep(CudaImage &img, CudaImage &flow, CudaImage &temp /* not a temp, it's output */,
                float stepsize) {
   // TimerGPU timer0(0);
   dim3 blocks0(iDivUp(img.width, NLDSTEP_W), iDivUp(img.height, NLDSTEP_H));
@@ -1809,7 +1809,7 @@ __global__ void BuildDescriptor(float *_valsim, unsigned char *_desc) {
 }
 
 
-double ExtractDescriptors(cv::KeyPoint *d_pts, std::vector<CudaImage> &h_imgs, CudaImage *d_imgs,
+double ExtractDescriptors(cv::KeyPoint *d_pts, CudaImage *d_imgs,
                           unsigned char *desc_d, float* vals_d, int patsize, int numPts) {
   int size2 = patsize;
   int size3 = ceil(2.0f * patsize / 3.0f);
@@ -2168,15 +2168,20 @@ __global__ void FindOrientation(cv::KeyPoint *d_pts, CudaImage *d_imgs) {
   }
 }
 
-double FindOrientation(cv::KeyPoint *d_pts, std::vector<CudaImage> &h_imgs, CudaImage *d_imgs, int numPts) {
-
-  //printf("d_imgs: %p h_imgs.size: %d, num_pts: %d\n", d_imgs, (int)h_imgs.size(), numPts);
-  safeCall(cudaMemcpyAsync(d_imgs, (float *)&h_imgs[0],
-                           sizeof(CudaImage) * h_imgs.size(),
+void PrepareCudaImages(CudaImage *cuda_images, const std::vector<CudaImage> &cuda_buffers)
+{
+  cudaStreamSynchronize(0);
+  // copy all cuda_buffers to cuda_images
+  safeCall(cudaMemcpyAsync(cuda_images, (float *)&cuda_buffers[0],
+                           sizeof(CudaImage) * cuda_buffers.size(),
                            cudaMemcpyHostToDevice));
 
+}
+
+
+double FindOrientation(cv::KeyPoint *d_pts, CudaImage *d_imgs, int numPts) {
+
   // TimerGPU timer0(0);
-  cudaStreamSynchronize(0);
   dim3 blocks(numPts);
   dim3 threads(ORIENT_S);
   FindOrientation << <blocks, threads>>> (d_pts, d_imgs);

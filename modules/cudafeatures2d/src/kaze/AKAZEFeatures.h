@@ -85,7 +85,7 @@ private:
   cv::Mat cuda_desc;
   float *cuda_descbuffer;
   int *cuda_ptindices;
-  CudaImage *cuda_images;
+  CudaImage *cuda_images;  ///< a mirror of cuda_buffers, but CudaImage structures are allocated in a device mem
   std::vector<CudaImage> cuda_buffers;
   int nump;
 
@@ -134,7 +134,7 @@ public:
 #ifdef USE_PYTHON
   boost::python::tuple Compute_Descriptors_();
 #endif // USE_PYTHON
-  void Compute_Descriptors(std::vector<cv::KeyPoint> &kpts, OutputArray & desc);
+  void Compute_Descriptors(const _OutputArray &desc);
 
   /// This method saves the scale space into jpg images
   void Save_Scale_Space();
@@ -148,6 +148,7 @@ public:
 
   /// Return the computation times
   AKAZETiming Get_Computation_Times() const { return timing_; }
+  void Verify_Keypoints(const std::vector<KeyPoint> &kpts) const;
 };
 
 /* ************************************************************************* */

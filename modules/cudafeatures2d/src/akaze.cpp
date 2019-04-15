@@ -185,26 +185,34 @@ public:
 
     AKAZEFeatures impl(options);
     cv::Mat floatImage;
-    if((floatImage.type() & CV_MAT_DEPTH_MASK) == CV_32F)
-    {
-        floatImage = image.getMat();
-    }
-    else
-    {
-        image.getMat().convertTo(floatImage, CV_32FC1);
-    }
+    Mat img = image.getMat();
+    if (img.channels() > 1)
+      cvtColor(image, img, COLOR_BGR2GRAY);
+
+    if ( img.depth() == CV_32F )
+      floatImage = img;
+    else if ( img.depth() == CV_8U )
+      img.convertTo(floatImage, CV_32F, 1.0 / 255.0, 0);
+    else if ( img.depth() == CV_16U )
+      img.convertTo(floatImage, CV_32F, 1.0 / 65535.0, 0);
+
     impl.Create_Nonlinear_Scale_Space(floatImage);
 
-    if (!useProvidedKeypoints) {
-      impl.Feature_Detection(keypoints);
-    }
+      if (useProvidedKeypoints) {
+          CV_Error(123, "not implemented");
+          //FIXME upload these keypoints to
+      } else {
+          impl.Feature_Detection(keypoints);
+      }
 
     if (!mask.empty()) {
       KeyPointsFilter::runByPixelsMask(keypoints, mask.getMat());
     }
 
+    impl.Verify_Keypoints(keypoints);
+
     if (descriptors.needed()) {
-      impl.Compute_Descriptors(keypoints, descriptors);
+      impl.Compute_Descriptors(descriptors);
 
       CV_Assert(
           (descriptors.empty() || descriptors.cols() == descriptorSize()));

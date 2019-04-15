@@ -234,9 +234,9 @@ int AKAZEFeatures::Create_Nonlinear_Scale_Space(const cv::Mat &img) {
 
   ContrastPercentile(Limg, Ltemp, Lsmooth, options_.kcontrast_percentile,
                      options_.kcontrast_nbins, options_.kcontrast);
-  LowPass(Limg, Lt, Ltemp, options_.soffset * options_.soffset,
+  LowPass(Limg, Lsmooth, Ltemp, options_.soffset * options_.soffset,
           2 * ceil((options_.soffset - 0.8) / 0.3) + 3);
-  Copy(Lt, Lsmooth);
+//  Copy(Lt, Lsmooth);
 
   Lt.h_data = (float *)ev.Lt.data;
 
@@ -247,6 +247,7 @@ int AKAZEFeatures::Create_Nonlinear_Scale_Space(const cv::Mat &img) {
   for (size_t i = 1; i < evolution_.size(); i++) {
     TEvolution &evn = evolution_[i];
     int num = options_.ncudaimages;
+    // printf("num: %d oct: %d subl: %d\n", num, evn.octave, evn.sublevel);
     CudaImage &Lt = cuda_buffers[evn.octave * num + 0 + 4 * evn.sublevel];
     CudaImage &Lsmooth = cuda_buffers[evn.octave * num + 1 + 4 * evn.sublevel];
     CudaImage &Lstep = cuda_buffers[evn.octave * num + 2];
@@ -393,35 +394,9 @@ boost::python::tuple AKAZE::Compute_Descriptors_() {
 /**
  * @brief This method  computes the set of descriptors through the nonlinear
  * scale space
- * @param kpts Vector of detected keypoints
  * @param desc Matrix to store the descriptors
  */
-void AKAZEFeatures::Compute_Descriptors(std::vector<cv::KeyPoint> &kpts,
-                                        OutputArray &descriptors) {
-
-  for (size_t i = 0; i < kpts.size(); i++) {
-    CV_Assert(0 <= kpts[i].class_id &&
-              kpts[i].class_id < static_cast<int>(evolution_.size()));
-  }
-
-  // Allocate memory for the matrix with the descriptors
-  int descriptor_size = 64;
-  int descriptor_type = CV_32FC1;
-  if (options_.descriptor >= cuda::AKAZE::DESCRIPTOR_MLDB_UPRIGHT) {
-    int descriptor_bits =
-        (options_.descriptor_size == 0)
-            ? (6 + 36 + 120) *
-                  options_.descriptor_channels // the full length binary
-                                               // descriptor -> 486 bits
-            : options_.descriptor_size; // the random bit selection length
-                                        // binary descriptor
-    descriptor_size = divUp(descriptor_bits, 8);
-    descriptor_type = CV_8UC1;
-  }
-  descriptors.create((int)kpts.size(), descriptor_size, descriptor_type);
-  // printf("created %d\n", ((int)(int)kpts.size()));
-
-  Mat desc = descriptors.getMat();
+void AKAZEFeatures::Compute_Descriptors(const _OutputArray &descriptors) {
 
   double t1 = 0.0, t2 = 0.0;
 
@@ -431,11 +406,19 @@ void AKAZEFeatures::Compute_Descriptors(std::vector<cv::KeyPoint> &kpts,
 
   switch (options_.descriptor) {
   case cuda::AKAZE::DESCRIPTOR_MLDB:
-    FindOrientation(cuda_points, cuda_buffers, cuda_images, nump);
-    //GetPoints(kpts, cuda_points, nump);
-    ExtractDescriptors(cuda_points, cuda_buffers, cuda_images, cuda_desc.data,
+    // printf("d_imgs: %p h_imgs.size: %d, num_pts: %d\n", d_imgs,
+    // (int)h_imgs.size(), numPts);
+    PrepareCudaImages(cuda_images, cuda_buffers);
+
+    FindOrientation(cuda_points, cuda_images, nump);
+    // GetPoints(kpts, cuda_points, nump);
+    ExtractDescriptors(cuda_points, cuda_images, cuda_desc.data,
                        cuda_descbuffer, pattern_size, nump);
-    GetDescriptors(desc, cuda_desc, nump);
+    {
+      Mat desc;
+      GetDescriptors(desc, cuda_desc, nump);
+      descriptors.assign(desc);
+    }
 
     break;
   default:
@@ -446,6 +429,13 @@ void AKAZEFeatures::Compute_Descriptors(std::vector<cv::KeyPoint> &kpts,
   timing_.descriptor = 1000.0 * (t2 - t1) / cv::getTickFrequency();
 
   WaitCuda();
+}
+
+void AKAZEFeatures::Verify_Keypoints(const vector<KeyPoint> &kpts) const {
+  for (size_t i = 0; i < kpts.size(); i++) {
+    CV_Assert(0 <= kpts[i].class_id &&
+              kpts[i].class_id < static_cast<int>(evolution_.size()));
+  }
 }
 
 /* ************************************************************************* */
