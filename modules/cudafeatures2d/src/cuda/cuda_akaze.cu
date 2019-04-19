@@ -534,13 +534,23 @@ float *AllocBuffers(int width, int height, int num, int omax, int &maxpts,
 
   InitCompareIndices();
 
+
   cudaStreamCreate(&copyStream);
 
   return memory;
 }
 
 
-void FreeBuffers(float *buffers) { safeCall(cudaFree(buffers)); }
+void FreeBuffers(float *buffers)
+{
+    if(buffers) {
+        safeCall(cudaFree(buffers));
+        cudaStreamSynchronize(copyStream);
+        cudaStreamDestroy(copyStream);
+        copyStream = nullptr;
+    }
+
+}
 
 __device__ unsigned int d_Maxval[1];
 __device__ int d_Histogram[512];
